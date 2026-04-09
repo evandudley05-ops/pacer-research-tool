@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacer Research Tool</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F6F8FA;--deep-blue:#163B63;--steel:#2E5B8A;--slate:#5E6B78;
+  --graphite:#111418;--mint:#3FD0B3;--surface:#FFFFFF;--border:#E2E6EA;
+  --red:#E54D42;--amber:#E8A735;--green:#2EAF6E;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--graphite);line-height:1.5}
+a{color:var(--steel);text-decoration:none}
+button{cursor:pointer;font-family:inherit;font-size:14px;border:none;border-radius:8px;padding:10px 20px;transition:all .15s}
+input{font-family:inherit;font-size:14px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;outline:none;width:100%}
+input:focus{border-color:var(--mint);box-shadow:0 0 0 3px rgba(63,208,179,.15)}
+
+.header{background:var(--deep-blue);color:#fff;padding:16px 32px;display:flex;align-items:center;gap:16px}
+.logo{width:40px;height:40px;background:var(--mint);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--deep-blue)}
+.header h1{font-size:20px;font-weight:600;letter-spacing:-.3px}
+.header small{color:rgba(255,255,255,.6);font-size:12px;margin-left:auto}
+
+.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px}
+.tab{padding:14px 24px;font-weight:500;color:var(--slate);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:var(--graphite)}
+.tab.active{color:var(--deep-blue);border-bottom-color:var(--mint)}
+
+.container{max-width:1100px;margin:0 auto;padding:24px 32px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+.card h3{font-size:16px;margin-bottom:12px;color:var(--graphite)}
+
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--deep-blue)}
+.stat-card .label{font-size:12px;color:var(--slate);margin-top:2px}
+
+.progress-bar-wrap{background:var(--border);border-radius:8px;height:10px;overflow:hidden;margin:8px 0}
+.progress-bar-fill{height:100%;background:var(--mint);border-radius:8px;transition:width .5s ease}
+.progress-label{font-size:13px;color:var(--slate);margin-bottom:4px}
+
+.btn-primary{background:var(--deep-blue);color:#fff}
+.btn-primary:hover{background:#1a4a7a}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{background:var(--surface);color:var(--deep-blue);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--surface);color:var(--red);border:1px solid var(--red)}
+.btn-danger:hover{background:#fdf0ef}
+.btn-mint{background:var(--mint);color:var(--deep-blue);font-weight:600}
+.btn-mint:hover{background:#35b89e}
+
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:12px 0}
+.cat-grid label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:var(--slate)}
+.cat-grid input[type=checkbox]{width:18px;height:18px;accent-color:var(--mint)}
+.cat-links{font-size:13px;color:var(--steel);margin-bottom:8px}
+.cat-links span{cursor:pointer;text-decoration:underline;margin-right:12px}
+
+.log-panel{background:#1a1e24;border-radius:10px;padding:16px;height:280px;overflow-y:auto;font-family:'SF Mono',SFMono-Regular,Menlo,Monaco,monospace;font-size:12px;line-height:1.8}
+.log-entry{white-space:pre-wrap;word-break:break-word}
+.log-entry .time{color:#555}
+.log-info{color:#8899aa}
+.log-success{color:var(--mint)}
+.log-warn{color:var(--amber)}
+.log-error{color:var(--red)}
+
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.status-dot.idle{background:#aaa}
+.status-dot.running{background:var(--mint);animation:pulse 1.2s infinite}
+.status-dot.paused{background:var(--amber)}
+.status-dot.complete{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.hidden{display:none!important}
+
+/* Review tab */
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.pill{padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;background:var(--surface);border:1px solid var(--border);color:var(--slate);transition:all .15s}
+.pill:hover{border-color:var(--steel)}
+.pill.active{background:var(--deep-blue);color:#fff;border-color:var(--deep-blue)}
+.pill .count{background:rgba(0,0,0,.1);padding:1px 7px;border-radius:10px;margin-left:4px;font-size:11px}
+.pill.active .count{background:rgba(255,255,255,.2)}
+
+.kb-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.kb-chip{font-family:'SF Mono',SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--slate)}
+
+.paper-card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:24px;margin-bottom:16px}
+.paper-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.paper-title{font-size:16px;font-weight:600;flex:1;line-height:1.4}
+.badges{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.badge{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600}
+.badge-score{background:var(--bg);color:var(--deep-blue);border:1px solid var(--border)}
+.badge-cat{background:#eef5ff;color:var(--steel)}
+.badge-oa{background:#e6f9f3;color:#1a7a5a}
+.badge-approve{background:#e6f9f3;color:#1a7a5a}
+.badge-review{background:#fff8e6;color:#8a6b1a}
+.badge-reject{background:#fdf0ef;color:var(--red)}
+
+.meta-row{font-size:13px;color:var(--slate);margin-bottom:16px}
+.meta-row a{color:var(--steel)}
+
+.scores-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.score-box{text-align:center;padding:10px 8px;border-radius:8px;border:1px solid var(--border)}
+.score-box .score-num{font-size:22px;font-weight:700}
+.score-box .score-label{font-size:11px;color:var(--slate);margin-top:2px}
+.score-green .score-num{color:var(--green)}
+.score-amber .score-num{color:var(--amber)}
+.score-red .score-num{color:var(--red)}
+
+.ai-box{border-left:3px solid var(--steel);padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--slate);background:#f8fafc;border-radius:0 8px 8px 0}
+.flag-box{border-left:3px solid var(--amber);padding:10px 16px;margin-bottom:12px;font-size:13px;color:#8a6b1a;background:#fffcf0;border-radius:0 8px 8px 0}
+.conflict-box{border-left:3px solid #e8d535;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#6b5f1a;background:#fefce8;border-radius:0 8px 8px 0}
+
+.abstract-text{font-size:14px;color:var(--slate);line-height:1.7;margin-bottom:16px}
+.abstract-text.collapsed{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.abstract-toggle{font-size:13px;color:var(--steel);cursor:pointer;margin-bottom:16px;display:inline-block}
+
+.decision-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.decision-btns button{padding:14px;font-size:15px;font-weight:600;border-radius:10px}
+.btn-approve{background:#e6f9f3;color:#1a7a5a;border:1px solid #b3e8d4}
+.btn-approve:hover{background:#d0f4e8}
+.btn-later{background:#fff8e6;color:#8a6b1a;border:1px solid #f0dca0}
+.btn-later:hover{background:#fff0cc}
+.btn-reject{background:#fdf0ef;color:var(--red);border:1px solid #f5c4c0}
+.btn-reject:hover{background:#fce0dd}
+
+.queue-pos{font-size:13px;color:var(--slate);margin-bottom:12px}
+
+.recent-decisions{margin-top:16px}
+.recent-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.recent-item:last-child{border-bottom:none}
+.recent-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--slate)}
+
+.export-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.export-section .sub{font-size:12px;color:var(--slate);margin-top:4px}
+
+.empty-state{text-align:center;padding:48px 24px;color:var(--slate)}
+.empty-state h3{color:var(--graphite);margin-bottom:8px}
+
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;color:#fff;font-size:14px;font-weight:500;z-index:999;animation:slideIn .3s ease;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.toast-approve{background:var(--green)}
+.toast-reject{background:var(--red)}
+.toast-later{background:var(--amber)}
+.toast-undo{background:var(--slate)}
+@keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border-radius:14px;padding:24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:16px}
+.modal pre{font-size:12px;white-space:pre-wrap;line-height:1.6;color:var(--slate)}
+.modal .close-btn{margin-top:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">P</div>
+  <div>
+    <h1>PACER Research Tool</h1>
+    <div style="font-size:12px;opacity:.6">Automated sports science database builder</div>
+  </div>
+  <small>v1.0.0</small>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('pipeline')">Pipeline</div>
+  <div class="tab" onclick="switchTab('review')">Review</div>
+</div>
+
+<div id="tab-pipeline" class="container">
+  <!-- Setup card -->
+  <div id="setup-card" class="card hidden">
+    <h3>First-time setup</h3>
+    <p style="font-size:14px;color:var(--slate);margin-bottom:12px">Enter your Anthropic API key to enable AI scoring.</p>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." style="margin-bottom:8px">
+    <p style="font-size:12px;color:var(--slate);margin-bottom:12px">Get your API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a></p>
+    <button class="btn-primary" onclick="saveApiKey()">Save API key</button>
+    <p style="font-size:11px;color:var(--slate);margin-top:8px">Your key is stored locally on this computer only.</p>
+  </div>
+
+  <!-- Status -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center">
+        <span id="status-dot" class="status-dot idle"></span>
+        <span id="status-text" style="font-weight:500">Ready to run</span>
+      </div>
+      <span id="last-run" style="font-size:12px;color:var(--slate)"></span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="num" id="stat-discovered">0</div><div class="label">Discovered</div></div>
+    <div class="stat-card"><div class="num" id="stat-filtered">0</div><div class="label">Filtered out</div></div>
+    <div class="stat-card"><div class="num" id="stat-scored">0</div><div class="label">AI Scored</div></div>
+    <div class="stat-card"><div class="num" id="stat-review">0</div><div class="label">Ready to review</div></div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-section" class="card hidden">
+    <div class="progress-label" id="progress-label">Stage 1: Discovering papers...</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+    <div style="font-size:12px;color:var(--slate);text-align:right" id="progress-count"></div>
+  </div>
+
+  <!-- Categories -->
+  <div class="card">
+    <h3>Research categories</h3>
+    <div class="cat-links">
+      <span onclick="toggleAllCats(true)">Select all</span>
+      <span onclick="toggleAllCats(false)">Clear all</span>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="actions">
+      <button class="btn-primary" id="btn-run" onclick="startPipeline()">Run pipeline</button>
+      <button class="btn-secondary hidden" id="btn-pause" onclick="pausePipeline()">Pause</button>
+      <button class="btn-primary hidden" id="btn-resume" onclick="resumePipeline()">Resume</button>
+      <button class="btn-danger" id="btn-reset" onclick="resetPipeline()">Reset</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <h3>Pipeline log</h3>
+    <div class="log-panel" id="log-panel"></div>
+  </div>
+
+  <!-- Report -->
+  <div id="report-section" class="card hidden">
+    <button class="btn-secondary" onclick="showReport()">View full report</button>
+  </div>
+</div>
+
+<div id="tab-review" class="container hidden">
+  <!-- Review stats -->
+  <div class="stats-row" id="review-stats-row">
+    <div class="stat-card"><div class="num" id="rs-total">0</div><div class="label">Total</div></div>
+    <div class="stat-card"><div class="num" id="rs-pending">0</div><div class="label">Pending</div></div>
+    <div class="stat-card"><div class="num" id="rs-approved">0</div><div class="label">Approved</div></div>
+    <div class="stat-card"><div class="num" id="rs-rejected">0</div><div class="label">Rejected</div></div>
+    <div class="stat-card"><div class="num" id="rs-later">0</div><div class="label">Later</div></div>
+  </div>
+
+  <!-- Review progress -->
+  <div class="card">
+    <div class="progress-label" id="review-progress-label">Review progress</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="review-progress-fill" style="width:0%"></div></div>
+    <div style="font-size:12px;color:var(--slate)" id="review-est"></div>
+  </div>
+
+  <!-- Category filter -->
+  <div class="pills" id="cat-pills"></div>
+
+  <!-- Keyboard hints -->
+  <div class="kb-bar">
+    <span class="kb-chip">A = Approve</span>
+    <span class="kb-chip">R = Reject</span>
+    <span class="kb-chip">S = Skip/Later</span>
+    <span class="kb-chip">Space = Expand abstract</span>
+    <span class="kb-chip">&larr; = Undo</span>
+  </div>
+
+  <!-- Current paper -->
+  <div id="paper-area"></div>
+
+  <!-- Recent decisions -->
+  <div id="recent-area" class="card hidden">
+    <h3>Recent decisions</h3>
+    <div id="recent-list"></div>
+  </div>
+
+  <!-- Export -->
+  <div class="export-section">
+    <div>
+      <strong>Export for Pacer</strong>
+      <div class="sub">Exports approved papers + auto-approved papers. Import this file into the Pacer main application.</div>
+    </div>
+    <button class="btn-primary" onclick="exportPapers()">Export for Pacer</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="modal-title"></h3>
+    <pre id="modal-body"></pre>
+    <button class="btn-secondary close-btn" onclick="document.getElementById('modal-overlay').classList.add('hidden')">Close</button>
+  </div>
+</div>
+
+<script>
+const ALL_CATS = ['endurance','biomechanics','nutrition','recovery','vo2max','strength','mental','body-comp','environmental','populations'];
+let currentTab = 'pipeline';
+let pollingInterval = null;
+let reviewPapers = [];
+let currentPaperIdx = 0;
+let currentCatFilter = null;
+let recentDecisions = [];
+let abstractExpanded = false;
+
+// Init
+document.addEventListener('DOMContentLoaded', async () => {
+  buildCategoryCheckboxes();
+  const cfg = await api('/api/config');
+  if (!cfg.anthropic_api_key) document.getElementById('setup-card').classList.remove('hidden');
+  refreshState();
+  startPolling();
+});
+
+function api(url, opts) {
+  return fetch(url, opts).then(r => r.json()).catch(() => null);
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'pipeline') || (i === 1 && tab === 'review')));
+  document.getElementById('tab-pipeline').classList.toggle('hidden', tab !== 'pipeline');
+  document.getElementById('tab-review').classList.toggle('hidden', tab !== 'review');
+  if (tab === 'review') loadReviewTab();
+}
+
+// Categories
+function buildCategoryCheckboxes() {
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = ALL_CATS.map(c => `<label><input type="checkbox" class="cat-cb" value="${c}" checked> ${c.charAt(0).toUpperCase() + c.slice(1).replace('-', ' ')}</label>`).join('');
+}
+function toggleAllCats(on) {
+  document.querySelectorAll('.cat-cb').forEach(cb => cb.checked = on);
+}
+function getSelectedCats() {
+  return [...document.querySelectorAll('.cat-cb:checked')].map(cb => cb.value);
+}
+
+// API key
+async function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  await api('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ anthropic_api_key: key }) });
+  document.getElementById('setup-card').classList.add('hidden');
+  showToast('API key saved', 'approve');
+}
+
+// Pipeline controls
+async function startPipeline() {
+  const cats = getSelectedCats();
+  if (!cats.length) return alert('Select at least one category');
+  await api('/api/pipeline/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories: cats }) });
+}
+async function pausePipeline() {
+  await api('/api/pipeline/pause', { method: 'POST' });
+}
+async function resumePipeline() {
+  await api('/api/pipeline/resume', { method: 'POST' });
+}
+async function resetPipeline() {
+  if (!confirm('Reset pipeline? This will delete all discovered and reviewed papers.')) return;
+  await api('/api/pipeline/reset', { method: 'POST' });
+  refreshState();
+}
+
+// Polling
+function startPolling() {
+  pollingInterval = setInterval(refreshState, 2000);
+}
+
+async function refreshState() {
+  const s = await api('/api/state');
+  if (!s) return;
+
+  // Status
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + s.status;
+  const labels = { idle: 'Ready to run', running: 'Pipeline running...', paused: 'Paused', complete: 'Complete' };
+  txt.textContent = labels[s.status] || s.status;
+  if (s.last_run) document.getElementById('last-run').textContent = 'Last run: ' + new Date(s.last_run).toLocaleDateString();
+
+  // Stats
+  document.getElementById('stat-discovered').textContent = s.stats.discovered;
+  document.getElementById('stat-filtered').textContent = s.stats.hard_filtered;
+  document.getElementById('stat-scored').textContent = s.stats.ai_scored;
+  document.getElementById('stat-review').textContent = s.stats.review_queue;
+
+  // Progress
+  const progSection = document.getElementById('progress-section');
+  if (s.status === 'running' || s.status === 'paused') {
+    progSection.classList.remove('hidden');
+    document.getElementById('progress-label').textContent = s.progress.stage_label;
+    const pct = s.progress.total > 0 ? Math.round((s.progress.current / s.progress.total) * 100) : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-count').textContent = `${s.progress.current} / ${s.progress.total}`;
+  } else {
+    progSection.classList.add('hidden');
+  }
+
+  // Buttons
+  document.getElementById('btn-run').classList.toggle('hidden', s.status === 'running' || s.status === 'paused');
+  document.getElementById('btn-run').disabled = s.status === 'running';
+  document.getElementById('btn-pause').classList.toggle('hidden', s.status !== 'running');
+  document.getElementById('btn-resume').classList.toggle('hidden', s.status !== 'paused');
+
+  // Log
+  const logPanel = document.getElementById('log-panel');
+  const entries = (s.log || []).slice(-100);
+  logPanel.innerHTML = entries.map(e => {
+    const t = new Date(e.time).toLocaleTimeString();
+    return `<div class="log-entry log-${e.type}"><span class="time">[${t}]</span> ${escHtml(e.message)}</div>`;
+  }).join('');
+  logPanel.scrollTop = logPanel.scrollHeight;
+
+  // Report
+  const reportSection = document.getElementById('report-section');
+  reportSection.classList.toggle('hidden', s.status !== 'complete');
+
+  // Store report text for modal
+  window._reportText = s.report_text || '';
+}
+
+function escHtml(s) {
+  return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+}
+
+function showReport() {
+  document.getElementById('modal-title').textContent = 'Pipeline Report';
+  document.getElementById('modal-body').textContent = window._reportText;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+// ── REVIEW TAB ──────────────────────────────────────
+async function loadReviewTab() {
+  const stats = await api('/api/stats');
+  if (stats) {
+    document.getElementById('rs-total').textContent = stats.total_papers;
+    document.getElementById('rs-pending').textContent = stats.by_status.pending || 0;
+    document.getElementById('rs-approved').textContent = stats.by_status.approved || 0;
+    document.getElementById('rs-rejected').textContent = stats.by_status.rejected || 0;
+    document.getElementById('rs-later').textContent = stats.by_status.later || 0;
+    document.getElementById('review-progress-fill').style.width = stats.review_progress_pct + '%';
+    document.getElementById('review-progress-label').textContent = `Review progress: ${stats.review_progress_pct}%`;
+    const mins = stats.estimated_minutes_remaining || 0;
+    document.getElementById('review-est').textContent = mins > 0 ? `Estimated: ${Math.floor(mins/60)}h ${mins%60}m remaining` : '';
+  }
+
+  // Category pills
+  await buildCatPills();
+  await loadPendingPapers();
+}
+
+async function buildCatPills() {
+  const papers = await api('/api/papers/review') || [];
+  const counts = {};
+  for (const p of papers) {
+    if (p.status === 'pending') counts[p.category] = (counts[p.category] || 0) + 1;
+  }
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  let html = `<div class="pill ${!currentCatFilter ? 'active' : ''}" onclick="filterCat(null)">All <span class="count">${total}</span></div>`;
+  for (const c of ALL_CATS) {
+    const n = counts[c] || 0;
+    html += `<div class="pill ${currentCatFilter === c ? 'active' : ''}" onclick="filterCat('${c}')">${c.charAt(0).toUpperCase() + c.slice(1).replace('-',' ')} <span class="count">${n}</span></div>`;
+  }
+  document.getElementById('cat-pills').innerHTML = html;
+}
+
+function filterCat(cat) {
+  currentCatFilter = cat;
+  currentPaperIdx = 0;
+  loadReviewTab();
+}
+
+async function loadPendingPapers() {
+  let url = '/api/papers/review?status=pending';
+  if (currentCatFilter) url += '&category=' + currentCatFilter;
+  reviewPapers = await api(url) || [];
+  currentPaperIdx = 0;
+  renderCurrentPaper();
+}
+
+function renderCurrentPaper() {
+  const area = document.getElementById('paper-area');
+  if (!reviewPapers.length || currentPaperIdx >= reviewPapers.length) {
+    area.innerHTML = `<div class="empty-state"><h3>All papers reviewed${currentCatFilter ? ' in ' + currentCatFilter : ''}</h3><p>Switch category or export your results below.</p></div>`;
+    return;
+  }
+  const p = reviewPapers[currentPaperIdx];
+  const s = p.scores || {};
+  abstractExpanded = false;
+
+  const bandClass = s.band === 'approve' ? 'badge-approve' : s.band === 'reject' ? 'badge-reject' : 'badge-review';
+  const bandLabel = s.band === 'approve' ? 'Auto-approve' : s.band === 'reject' ? 'Auto-reject' : 'Review';
+
+  function scoreClass(v) { return v >= 8 ? 'score-green' : v >= 5 ? 'score-amber' : 'score-red'; }
+
+  const doiLink = p.doi ? `<a href="https://doi.org/${escHtml(p.doi)}" target="_blank">Verify DOI &nearr;</a>` : '';
+
+  let extraBoxes = '';
+  if (s.rationale) extraBoxes += `<div class="ai-box"><strong>AI assessment:</strong> ${escHtml(s.rationale)}</div>`;
+  if (s.flag) extraBoxes += `<div class="flag-box"><strong>Flag:</strong> ${escHtml(s.flag)}</div>`;
+  if (s.conflict) extraBoxes += `<div class="conflict-box"><strong>Conflict detected:</strong> contradictory findings exist in this category. Both papers will be flagged so Pacer can present balanced guidance.</div>`;
+
+  area.innerHTML = `
+    <div class="queue-pos">Reviewing ${currentPaperIdx + 1} of ${reviewPapers.length} pending${currentCatFilter ? ' in ' + currentCatFilter.charAt(0).toUpperCase() + currentCatFilter.slice(1) : ''}</div>
+    <div class="paper-card">
+      <div class="paper-header">
+        <div class="paper-title">${escHtml(p.title)}</div>
+        <div class="badges">
+          <span class="badge ${bandClass}">${bandLabel}</span>
+          <span class="badge badge-score">${s.overall || '?'}/100</span>
+          <span class="badge badge-cat">${p.category}</span>
+          ${p.open_access ? '<span class="badge badge-oa">Open Access</span>' : ''}
+        </div>
+      </div>
+      <div class="meta-row">${escHtml(p.authors || '')} &middot; ${escHtml(p.journal || '')} &middot; ${p.year || '?'} ${doiLink ? '&middot; ' + doiLink : ''}</div>
+      <div class="scores-grid">
+        <div class="score-box ${scoreClass(s.methodology)}"><div class="score-num">${s.methodology || '?'}</div><div class="score-label">Methodology</div></div>
+        <div class="score-box ${scoreClass(s.applicability)}"><div class="score-num">${s.applicability || '?'}</div><div class="score-label">Applicability</div></div>
+        <div class="score-box ${scoreClass(s.recency)}"><div class="score-num">${s.recency || '?'}</div><div class="score-label">Recency</div></div>
+        <div class="score-box ${scoreClass(s.citation_weight)}"><div class="score-num">${s.citation_weight || '?'}</div><div class="score-label">Citations</div></div>
+        <div class="score-box ${scoreClass(s.relevance)}"><div class="score-num">${s.relevance || '?'}</div><div class="score-label">Relevance</div></div>
+      </div>
+      ${extraBoxes}
+      <div class="abstract-text collapsed" id="abstract-text">${escHtml(p.abstract || 'No abstract available.')}</div>
+      <span class="abstract-toggle" id="abstract-toggle" onclick="toggleAbstract()">Read full abstract</span>
+      <div class="decision-btns">
+        <button class="btn-approve" onclick="decidePaper('approved')">Approve<br><small style="font-weight:400;font-size:11px">A</small></button>
+        <button class="btn-later" onclick="decidePaper('later')">Review later<br><small style="font-weight:400;font-size:11px">S</small></button>
+        <button class="btn-reject" onclick="decidePaper('rejected')">Reject<br><small style="font-weight:400;font-size:11px">R</small></button>
+      </div>
+    </div>`;
+}
+
+function toggleAbstract() {
+  abstractExpanded = !abstractExpanded;
+  const el = document.getElementById('abstract-text');
+  const tog = document.getElementById('abstract-toggle');
+  if (el) el.classList.toggle('collapsed', !abstractExpanded);
+  if (tog) tog.textContent = abstractExpanded ? 'Show less' : 'Read full abstract';
+}
+
+async function decidePaper(status) {
+  if (!reviewPapers.length || currentPaperIdx >= reviewPapers.length) return;
+  const p = reviewPapers[currentPaperIdx];
+  await api(`/api/papers/${p.id}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+
+  recentDecisions.unshift({ id: p.id, title: p.title, status });
+  if (recentDecisions.length > 5) recentDecisions.pop();
+  renderRecent();
+
+  const toastClass = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : 'later';
+  showToast(`Paper ${status}`, toastClass);
+
+  reviewPapers.splice(currentPaperIdx, 1);
+  if (currentPaperIdx >= reviewPapers.length) currentPaperIdx = 0;
+  renderCurrentPaper();
+  loadReviewTab();
+}
+
+async function undoLast() {
+  if (!recentDecisions.length) return;
+  const last = recentDecisions.shift();
+  await api(`/api/papers/${last.id}/undo`, { method: 'POST' });
+  showToast('Undone', 'undo');
+  renderRecent();
+  await loadPendingPapers();
+  loadReviewTab();
+}
+
+function renderRecent() {
+  const area = document.getElementById('recent-area');
+  const list = document.getElementById('recent-list');
+  if (!recentDecisions.length) { area.classList.add('hidden'); return; }
+  area.classList.remove('hidden');
+  list.innerHTML = recentDecisions.map(d => {
+    const cls = d.status === 'approved' ? 'badge-approve' : d.status === 'rejected' ? 'badge-reject' : 'badge-review';
+    return `<div class="recent-item"><span class="recent-title">${escHtml(d.title)}</span><span class="badge ${cls}">${d.status}</span></div>`;
+  }).join('') + `<div style="margin-top:8px"><button class="btn-secondary" onclick="undoLast()" style="font-size:12px;padding:6px 14px">Undo last</button></div>`;
+}
+
+function exportPapers() {
+  window.location.href = '/api/export';
+}
+
+// Toasts
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (currentTab !== 'review') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  switch (e.key) {
+    case 'a': case 'A': e.preventDefault(); decidePaper('approved'); break;
+    case 'r': case 'R': e.preventDefault(); decidePaper('rejected'); break;
+    case 's': case 'S': e.preventDefault(); decidePaper('later'); break;
+    case ' ': e.preventDefault(); toggleAbstract(); break;
+    case 'ArrowLeft': e.preventDefault(); undoLast(); break;
+  }
+});
+</script>
+</body>
+</html>
