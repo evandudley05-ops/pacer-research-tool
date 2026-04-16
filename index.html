@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacer Research Pipeline v4</title>
+<style>
+  :root {
+    --primary: #163B63;
+    --secondary: #2E5B8A;
+    --accent: #3FD0B3;
+    --body: #111418;
+    --label: #5E6B78;
+    --bg: #F6F8FA;
+    --surface: #FFFFFF;
+    --border: #E2E6EA;
+    --approved: #16a34a;
+    --rejected: #dc2626;
+    --review: #d97706;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--body); min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--primary); color: white; padding: 14px 24px; display: flex; align-items: center; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .header .badge { background: var(--accent); color: #0a1a14; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+  .header-stats { margin-left: auto; display: flex; gap: 20px; font-size: 13px; opacity: 0.85; }
+  .header-stats span { display: flex; align-items: center; gap: 6px; }
+
+  /* Tabs */
+  .tabs { background: var(--primary); display: flex; padding: 0 24px; border-top: 1px solid rgba(255,255,255,0.1); }
+  .tab-btn { padding: 10px 18px; color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .tab-btn:hover { color: rgba(255,255,255,0.85); }
+  .tab-btn.active { color: white; border-bottom-color: var(--accent); }
+  .tab-content { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .tab-content.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card h3 { font-size: 15px; font-weight: 600; color: var(--primary); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+  /* Forms */
+  .form-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+  label { font-size: 12px; font-weight: 600; color: var(--label); text-transform: uppercase; letter-spacing: 0.4px; }
+  input[type=text], input[type=email], input[type=password], textarea, select {
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 11px; font-size: 14px; font-family: var(--font);
+    color: var(--body); background: var(--surface); width: 100%; outline: none; transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(63,208,179,0.15); }
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--secondary); }
+  .btn-accent { background: var(--accent); color: #0a1a14; }
+  .btn-accent:hover { filter: brightness(1.1); }
+  .btn-success { background: var(--approved); color: white; }
+  .btn-success:hover { background: #15803d; }
+  .btn-danger { background: var(--rejected); color: white; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-ghost { background: transparent; color: var(--label); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg); color: var(--body); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Badges */
+  .badge-tag { background: rgba(63,208,179,0.15); color: #0d7a6a; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 20px; display: inline-block; }
+  .badge-tier { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .tier-1 { background: #fef3c7; color: #92400e; }
+  .tier-2 { background: #dbeafe; color: #1e40af; }
+  .tier-3 { background: #f3e8ff; color: #6b21a8; }
+  .tier-4 { background: #fce7f3; color: #9d174d; }
+  .status-approved { color: var(--approved); font-weight: 600; }
+  .status-rejected { color: var(--rejected); font-weight: 600; }
+  .status-review { color: var(--review); font-weight: 600; }
+
+  /* ─── SETUP TAB ─── */
+  .key-row { display: flex; gap: 8px; align-items: center; }
+  .key-row input { flex: 1; font-family: monospace; }
+  .key-status { font-size: 12px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  .key-status.has-key { background: #dcfce7; color: #166534; }
+  .key-status.no-key { background: #fef2f2; color: #991b1b; }
+  .connection-result { margin-top: 10px; padding: 10px 14px; border-radius: 6px; font-size: 14px; display: none; }
+  .connection-result.success { background: #dcfce7; color: #166534; }
+  .connection-result.error { background: #fef2f2; color: #991b1b; }
+
+  /* ─── SEEDS TAB ─── */
+  .seeds-grid { display: grid; gap: 10px; }
+  .seed-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .seed-status { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .seed-status.resolved { background: #dcfce7; color: #166534; }
+  .seed-status.unresolved { background: #fef2f2; color: #991b1b; }
+  .seed-status.loading { background: #fef9c3; color: #854d0e; }
+  .seed-doi { font-family: monospace; font-size: 12px; color: var(--label); }
+  .seed-title { font-size: 13px; font-weight: 600; color: var(--body); }
+  .seed-desc { font-size: 12px; color: var(--label); }
+  .seed-info { flex: 1; min-width: 0; }
+
+  /* ─── PIPELINE TAB ─── */
+  .domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .domain-check { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: var(--surface); transition: all 0.12s; }
+  .domain-check:hover { border-color: var(--accent); }
+  .domain-check input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .domain-check .domain-name { font-size: 13px; font-weight: 500; }
+  .domain-check .domain-min { font-size: 11px; color: var(--label); margin-left: auto; }
+  .domain-check.priority { border-left: 3px solid var(--accent); }
+
+  /* Progress log */
+  .log-panel { background: #0f1923; border-radius: 8px; padding: 14px; height: 380px; overflow-y: auto; font-family: 'Monaco', 'Menlo', monospace; font-size: 12.5px; line-height: 1.6; }
+  .log-panel::-webkit-scrollbar { width: 6px; }
+  .log-panel::-webkit-scrollbar-track { background: transparent; }
+  .log-panel::-webkit-scrollbar-thumb { background: #2a3a4a; border-radius: 3px; }
+  .log-line { padding: 1px 0; }
+  .log-line.gray { color: #6b7e8f; }
+  .log-line.blue { color: #60a5fa; }
+  .log-line.green { color: #4ade80; }
+  .log-line.amber { color: #fbbf24; }
+  .log-line.red { color: #f87171; }
+  .log-line.mint { color: #3FD0B3; font-weight: 600; }
+  .pipeline-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .pipeline-controls .select-btns { display: flex; gap: 6px; margin-left: auto; }
+
+  /* ─── REVIEW TAB ─── */
+  .review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .review-progress { font-size: 13px; color: var(--label); }
+  .review-shortcuts { font-size: 12px; color: var(--label); background: var(--bg); padding: 6px 12px; border-radius: 6px; }
+  .review-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; }
+  .review-card .paper-title { font-size: 18px; font-weight: 700; color: var(--body); margin-bottom: 8px; line-height: 1.3; }
+  .review-card .paper-meta { font-size: 13px; color: var(--label); margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .review-card .paper-meta a { color: var(--secondary); text-decoration: none; }
+  .review-card .paper-meta a:hover { text-decoration: underline; }
+  .score-section { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .score-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; flex-shrink: 0; }
+  .score-circle.high { background: #dcfce7; color: #166534; }
+  .score-circle.mid { background: #fef9c3; color: #854d0e; }
+  .score-circle.low { background: #fef2f2; color: #991b1b; }
+  .score-bars { flex: 1; min-width: 200px; }
+  .score-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .score-bar-label { font-size: 11px; color: var(--label); width: 130px; flex-shrink: 0; }
+  .score-bar-track { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+  .score-bar-val { font-size: 11px; color: var(--label); width: 28px; text-align: right; }
+  .summary-text { font-size: 14px; color: var(--secondary); font-style: italic; margin-bottom: 12px; padding: 10px 14px; background: #f0f7ff; border-radius: 6px; border-left: 3px solid var(--secondary); }
+  .tags-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+  .abstract-toggle { font-size: 13px; color: var(--secondary); cursor: pointer; font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+  .abstract-text { font-size: 13px; color: var(--body); line-height: 1.6; display: none; max-height: 200px; overflow-y: auto; background: var(--bg); padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+  .abstract-text.open { display: block; }
+  .review-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .review-note { flex: 1; min-width: 200px; }
+  .empty-queue { text-align: center; padding: 60px; color: var(--label); }
+  .empty-queue .icon { font-size: 48px; margin-bottom: 14px; }
+  .empty-queue p { font-size: 15px; }
+
+  /* ─── LIBRARY TAB ─── */
+  .textbook-presets { display: grid; gap: 8px; margin-bottom: 20px; }
+  .textbook-preset { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--surface); transition: border-color 0.15s; }
+  .textbook-preset:hover { border-color: var(--accent); }
+  .textbook-preset .tb-title { font-size: 13px; font-weight: 600; }
+  .textbook-preset .tb-meta { font-size: 12px; color: var(--label); }
+  .library-entries { display: grid; gap: 10px; }
+  .library-entry { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .library-entry .entry-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .library-entry .entry-meta { font-size: 12px; color: var(--label); margin-bottom: 8px; }
+  .library-entry .entry-body { font-size: 13px; color: var(--body); margin-bottom: 6px; }
+  .stars { color: #f59e0b; letter-spacing: 1px; }
+  .star-selector { display: flex; gap: 5px; }
+  .star-btn { font-size: 22px; cursor: pointer; transition: transform 0.1s; }
+  .star-btn:hover { transform: scale(1.2); }
+
+  /* ─── EXPORT TAB ─── */
+  .coverage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .coverage-item { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .coverage-item.green { border-color: #16a34a; background: #f0fdf4; }
+  .coverage-item.amber { border-color: #d97706; background: #fffbeb; }
+  .coverage-item.red { border-color: #dc2626; background: #fef2f2; }
+  .coverage-item.neutral { border-color: var(--border); background: var(--surface); }
+  .coverage-indicator { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .coverage-indicator.green { background: #16a34a; }
+  .coverage-indicator.amber { background: #d97706; }
+  .coverage-indicator.red { background: #dc2626; }
+  .coverage-indicator.neutral { background: var(--label); }
+  .coverage-info { flex: 1; min-width: 0; }
+  .coverage-label { font-size: 13px; font-weight: 600; color: var(--body); }
+  .coverage-count { font-size: 12px; color: var(--label); }
+  .export-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+  .stat-box .stat-num { font-size: 28px; font-weight: 800; color: var(--primary); }
+  .stat-box .stat-label { font-size: 12px; color: var(--label); margin-top: 3px; }
+
+  /* Utility */
+  .section-title { font-size: 13px; font-weight: 700; color: var(--label); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .inline-flex { display: inline-flex; align-items: center; gap: 6px; }
+  .mt-12 { margin-top: 12px; }
+  .ml-auto { margin-left: auto; }
+  .text-sm { font-size: 13px; }
+  .text-label { color: var(--label); }
+  .hidden { display: none !important; }
+  .spin { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <span style="font-size:22px;">🏃</span>
+  <h1>Pacer Research Pipeline</h1>
+  <span class="badge">v4</span>
+  <div class="header-stats" id="headerStats">
+    <span>✓ <strong id="statApproved">0</strong> approved</span>
+    <span>⏳ <strong id="statQueue">0</strong> in queue</span>
+    <span>📚 <strong id="statLibrary">0</strong> library</span>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="setup">⚙ Setup</button>
+  <button class="tab-btn" data-tab="seeds">🌱 Seeds</button>
+  <button class="tab-btn" data-tab="pipeline">▶ Pipeline</button>
+  <button class="tab-btn" data-tab="review">👁 Review <span id="reviewBadge" class="badge" style="display:none;margin-left:4px;"></span></button>
+  <button class="tab-btn" data-tab="library">📖 Library</button>
+  <button class="tab-btn" data-tab="export">📤 Export</button>
+</div>
+
+<!-- ═══════════════ SETUP TAB ═══════════════ -->
+<div class="tab-content active" id="tab-setup">
+  <div class="card">
+    <h3>⚙ API Configuration</h3>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Anthropic API Key <span style="color:var(--rejected)">*Required</span></label>
+      <div class="key-row">
+        <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
+        <span id="anthropicKeyStatus" class="key-status no-key">Not set</span>
+      </div>
+      <div style="font-size:12px;color:var(--label);margin-top:4px;">Used for Claude Haiku 4.5 pre-screening and scoring. Never hardcoded.</div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>SerpAPI Key <span style="color:var(--label)">(Optional — Google Scholar)</span></label>
+      <div class="key-row">
+        <input type="password" id="serpApiKey" placeholder="serpapi key..." autocomplete="off">
+        <span id="serpApiKeyStatus" class="key-status no-key">Not set</span>
+      </div>
+      <div style="font-size:12px;color:var(--label);margin-top:4px;">Required for Google Scholar queries. Tool works without it.</div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>EBSCO API Key <span style="color:var(--label)">(Optional — SPORTDiscus)</span></label>
+      <div class="key-row">
+        <input type="password" id="ebscoKey" placeholder="ebsco key..." autocomplete="off">
+        <span id="ebscoKeyStatus" class="key-status no-key">Not set</span>
+      </div>
+      <div style="font-size:12px;color:var(--label);margin-top:4px;">Required for SPORTDiscus (gold standard sports science DB). Tool works without it.</div>
+    </div>
+    <div class="form-group" style="margin-bottom:18px;">
+      <label>Unpaywall Email</label>
+      <input type="email" id="unpaywallEmail" placeholder="research@yourorg.com" value="research@pacer.app">
+      <div style="font-size:12px;color:var(--label);margin-top:4px;">Used for Unpaywall OA lookup (free). Any valid email works.</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveConfig()">💾 Save Settings</button>
+      <button class="btn btn-ghost" onclick="testConnection()">🔌 Test Anthropic Connection</button>
+    </div>
+    <div class="connection-result" id="connectionResult"></div>
+  </div>
+
+  <div class="card">
+    <h3>ℹ About This Tool</h3>
+    <div style="font-size:14px;color:var(--label);line-height:1.7;">
+      <p><strong style="color:var(--body)">Pacer Research Pipeline v4</strong> discovers, scores, and exports sports science research papers for the Pacer coaching AI's RAG knowledge layer.</p>
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+        <div><strong style="color:var(--body);">9 Academic Sources</strong><br>PubMed, Europe PMC, Semantic Scholar, CrossRef, NIH NLM, DOAJ, Unpaywall, SPORTDiscus, Google Scholar</div>
+        <div><strong style="color:var(--body);">2-Stage Haiku Scoring</strong><br>Binary coach-relevance gate → 5-criteria 0–100 score</div>
+        <div><strong style="color:var(--body);">Smart Routing</strong><br>88+ auto-approved · 65-87 human review · below 65 rejected</div>
+        <div><strong style="color:var(--body);">13 Seed DOIs</strong><br>Pre-loaded consensus papers + citation network expansion</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SEEDS TAB ═══════════════ -->
+<div class="tab-content" id="tab-seeds">
+  <div class="card">
+    <h3>🌱 Seed DOI Library</h3>
+    <p style="font-size:13px;color:var(--label);margin-bottom:16px;">These 13 consensus papers are pre-loaded and auto-approved. They also serve as citation network roots — the pipeline expands discovery by chasing papers that cite them.</p>
+    <div class="seeds-grid" id="seedsGrid">
+      <div style="text-align:center;padding:30px;color:var(--label);">Loading seeds...</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>➕ Add Seed DOI</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>DOI</label>
+        <input type="text" id="addSeedDoi" placeholder="10.xxxx/xxxxx">
+      </div>
+      <button class="btn btn-primary" onclick="addSeedDOI()" style="align-self:flex-end;">Add Seed</button>
+    </div>
+    <div id="addSeedResult" style="font-size:13px;margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ PIPELINE TAB ═══════════════ -->
+<div class="tab-content" id="tab-pipeline">
+  <div class="card">
+    <h3>🔬 Domain Selection</h3>
+    <div class="pipeline-controls">
+      <span style="font-size:13px;color:var(--label);" id="domainSelectionCount">Select domains to query</span>
+      <div class="select-btns">
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="selectAllDomains()">Select All</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="selectNoneDomains()">None</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="selectPriorityDomains()">Priority Only</button>
+      </div>
+    </div>
+    <div class="domain-grid" id="domainGrid">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h3>▶ Run Pipeline</h3>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-accent" id="runPipelineBtn" onclick="runPipeline()" style="font-size:15px;padding:10px 22px;">▶ Run Pipeline</button>
+      <button class="btn btn-danger" id="stopPipelineBtn" onclick="stopPipeline()" style="display:none;">⏹ Stop</button>
+      <span id="pipelineStatus" style="font-size:13px;color:var(--label);"></span>
+    </div>
+    <div class="section-title">Progress Log</div>
+    <div class="log-panel" id="logPanel">
+      <div class="log-line gray">Waiting for pipeline to start...</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="clearLog()">Clear Log</button>
+      <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" onclick="scrollToBottom()">↓ Scroll to Bottom</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ REVIEW TAB ═══════════════ -->
+<div class="tab-content" id="tab-review">
+  <div class="review-header">
+    <div>
+      <h2 style="font-size:18px;font-weight:700;">Human Review Queue</h2>
+      <div class="review-progress" id="reviewProgress">Loading...</div>
+    </div>
+    <div class="review-shortcuts">⌨ Keyboard: <strong>A</strong> Approve · <strong>R</strong> Reject · <strong>Space</strong> Next</div>
+  </div>
+
+  <div id="reviewContainer">
+    <div class="empty-queue">
+      <div class="icon">✅</div>
+      <p>No papers in review queue</p>
+      <p style="margin-top:8px;font-size:13px;">Run the pipeline to discover and score papers. Papers scoring 65–87 appear here.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LIBRARY TAB ═══════════════ -->
+<div class="tab-content" id="tab-library">
+  <div class="card">
+    <h3>📚 Target Textbooks</h3>
+    <p style="font-size:13px;color:var(--label);margin-bottom:14px;">Click a textbook to pre-fill the entry form below.</p>
+    <div class="textbook-presets" id="textbookPresets">
+      <div class="textbook-preset" onclick="prefillTextbook('Physiology of Sport and Exercise, 8th ed.','Kenney, Wilmore & Costill','2021',1,'running_physiology')">
+        <span class="badge-tier tier-1">Tier 1</span>
+        <div>
+          <div class="tb-title">Physiology of Sport and Exercise, 8th ed.</div>
+          <div class="tb-meta">Kenney, Wilmore & Costill · 2021 · Target: 40–60 entries</div>
+        </div>
+      </div>
+      <div class="textbook-preset" onclick="prefillTextbook('Exercise Physiology: Nutrition, Energy, and Human Performance, 9th ed.','McArdle, Katch & Katch','2023',1,'running_physiology')">
+        <span class="badge-tier tier-1">Tier 1</span>
+        <div>
+          <div class="tb-title">Exercise Physiology, 9th ed.</div>
+          <div class="tb-meta">McArdle, Katch & Katch · 2023 · Target: 30–40 entries</div>
+        </div>
+      </div>
+      <div class="textbook-preset" onclick="prefillTextbook(\"Daniels' Running Formula, 4th ed.\",'Jack Daniels','2021',4,'running_physiology')">
+        <span class="badge-tier tier-4">Tier 4</span>
+        <div>
+          <div class="tb-title">Daniels' Running Formula, 4th ed.</div>
+          <div class="tb-meta">Jack Daniels · 2021 · Target: 20–30 entries</div>
+        </div>
+      </div>
+      <div class="textbook-preset" onclick="prefillTextbook('Lore of Running, 4th ed.','Tim Noakes','2003',4,'running_physiology')">
+        <span class="badge-tier tier-4">Tier 4</span>
+        <div>
+          <div class="tb-title">Lore of Running, 4th ed.</div>
+          <div class="tb-meta">Tim Noakes · 2003 · Target: 15–20 entries</div>
+        </div>
+      </div>
+      <div class="textbook-preset" onclick="prefillTextbook('ACSM Position Stands','ACSM','2024',2,'periodization')">
+        <span class="badge-tier tier-2">Tier 2</span>
+        <div>
+          <div class="tb-title">ACSM Position Stands</div>
+          <div class="tb-meta">acsm.org/pronouncements · Target: 10–15 entries per stand</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>➕ New Library Entry</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Source Title</label>
+        <input type="text" id="lib_source_title" placeholder="Physiology of Sport and Exercise, 8th ed.">
+      </div>
+      <div class="form-group">
+        <label>Authors</label>
+        <input type="text" id="lib_authors" placeholder="Kenney, Wilmore & Costill">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Chapter / Section</label>
+        <input type="text" id="lib_chapter" placeholder="Chapter 5: Hormonal Control During Exercise">
+      </div>
+      <div class="form-group">
+        <label>Page Reference</label>
+        <input type="text" id="lib_pages" placeholder="pp. 142-148">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Core Principle</label>
+      <textarea id="lib_principle" placeholder="1-2 sentence summary of the key finding or principle"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Coaching Implication</label>
+      <textarea id="lib_implication" placeholder="What Pacer should tell an athlete based on this"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Domain</label>
+        <select id="lib_domain">
+          <option value="running_physiology">Running Physiology</option>
+          <option value="cycling_physiology">Cycling Physiology</option>
+          <option value="triathlon_performance">Triathlon Performance</option>
+          <option value="nutrition_timing">Nutrition Timing</option>
+          <option value="injury_prevention">Injury Prevention</option>
+          <option value="biomechanics">Biomechanics</option>
+          <option value="periodization">Periodization</option>
+          <option value="tapering_peaking">Tapering & Peaking</option>
+          <option value="deload_recovery">Deload & Recovery</option>
+          <option value="trail_running_ultra">Trail Running & Ultra</option>
+          <option value="female_athlete">Female Athlete Physiology</option>
+          <option value="masters_athletes">Masters Athletes</option>
+          <option value="sleep_recovery">Sleep & Recovery</option>
+          <option value="mental_performance">Mental Performance</option>
+          <option value="gut_training">Gut Training & GI</option>
+          <option value="wearable_data">Wearable Data</option>
+          <option value="environmental_physiology">Environmental Physiology</option>
+          <option value="strength_endurance">Strength for Endurance</option>
+          <option value="youth_athletes">Youth Athletes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tier</label>
+        <select id="lib_tier">
+          <option value="1">Tier 1 — Textbook</option>
+          <option value="2">Tier 2 — Consensus</option>
+          <option value="3">Tier 3 — Review</option>
+          <option value="4">Tier 4 — Applied</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Citation Count (approx)</label>
+        <input type="text" id="lib_citations" placeholder="0">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>Confidence Level</label>
+      <div class="star-selector" id="libStars">
+        <span class="star-btn" onclick="setLibStars(1)">☆</span>
+        <span class="star-btn" onclick="setLibStars(2)">☆</span>
+        <span class="star-btn" onclick="setLibStars(3)">☆</span>
+        <span class="star-btn" onclick="setLibStars(4)">☆</span>
+        <span class="star-btn" onclick="setLibStars(5)">☆</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveLibraryEntry()">💾 Save Entry</button>
+    <span id="libSaveResult" style="font-size:13px;margin-left:12px;"></span>
+  </div>
+
+  <div class="card">
+    <h3>📋 Existing Library Entries (<span id="libCount">0</span>)</h3>
+    <div class="library-entries" id="libraryEntries">
+      <div style="text-align:center;padding:20px;color:var(--label);">No entries yet. Add textbook knowledge above.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ EXPORT TAB ═══════════════ -->
+<div class="tab-content" id="tab-export">
+  <div class="card">
+    <h3>📊 Coverage Dashboard</h3>
+    <p style="font-size:13px;color:var(--label);margin-bottom:14px;">
+      <span style="color:var(--approved);">● Green</span> = at or above minimum ·
+      <span style="color:var(--review);">● Amber</span> = below minimum ·
+      <span style="color:var(--rejected);">● Red</span> = below 50% of minimum ·
+      ● Gray = no minimum set
+    </p>
+    <div class="coverage-grid" id="coverageGrid">Loading...</div>
+    <button class="btn btn-ghost" style="font-size:12px;" onclick="loadCoverage()">↻ Refresh</button>
+  </div>
+
+  <div class="card">
+    <h3>📈 Database Statistics</h3>
+    <div class="export-stats" id="exportStats">Loading...</div>
+  </div>
+
+  <div class="card">
+    <h3>📤 Export JSON</h3>
+    <p style="font-size:14px;color:var(--label);margin-bottom:16px;">Exports all approved papers and library entries as a structured JSON file for Supabase ingestion.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-accent" style="font-size:15px;padding:10px 22px;" onclick="exportJSON()">📥 Export pacer_database_{date}.json</button>
+      <span style="font-size:13px;color:var(--label);" id="exportStatus"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let selectedDomains = new Set();
+let reviewQueue = [];
+let reviewIndex = 0;
+let libStarsValue = 4;
+let allDomains = [];
+let eventSource = null;
+let pipelineRunning = false;
+
+// ─── Tab Navigation ───────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'seeds') loadSeeds();
+    if (btn.dataset.tab === 'review') loadReviewQueue();
+    if (btn.dataset.tab === 'library') loadLibrary();
+    if (btn.dataset.tab === 'export') { loadCoverage(); loadStats(); }
+  });
+});
+
+// ─── SSE Connection ───────────────────────────────────────────────────────────
+function connectSSE() {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource('/api/events');
+  eventSource.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'log') appendLog(data.color, data.text);
+    if (data.type === 'pipeline_complete' || data.type === 'pipeline_stopped') {
+      setPipelineRunning(false);
+      updateStats();
+      loadReviewBadge();
+    }
+    if (data.type === 'paper_reviewed') updateStats();
+  };
+  eventSource.onerror = () => {
+    setTimeout(connectSSE, 3000);
+  };
+}
+connectSSE();
+
+// ─── Log Panel ────────────────────────────────────────────────────────────────
+function appendLog(color, text) {
+  const panel = document.getElementById('logPanel');
+  const line = document.createElement('div');
+  line.className = `log-line ${color}`;
+  line.textContent = text;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logPanel').innerHTML = '<div class="log-line gray">Log cleared.</div>';
+}
+
+function scrollToBottom() {
+  const panel = document.getElementById('logPanel');
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+async function updateStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const data = await r.json();
+    document.getElementById('statApproved').textContent = data.approved || 0;
+    document.getElementById('statQueue').textContent = data.review_queue || 0;
+    document.getElementById('statLibrary').textContent = data.library_entries || 0;
+    loadReviewBadge(data.review_queue);
+  } catch {}
+}
+
+function loadReviewBadge(count) {
+  const badge = document.getElementById('reviewBadge');
+  if (count > 0) { badge.textContent = count; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+// ─── SETUP TAB ────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    const cfg = await r.json();
+    if (cfg.hasAnthropicKey) {
+      document.getElementById('anthropicKeyStatus').textContent = 'Set ✓';
+      document.getElementById('anthropicKeyStatus').className = 'key-status has-key';
+    }
+    if (cfg.hasSerpApiKey) {
+      document.getElementById('serpApiKeyStatus').textContent = 'Set ✓';
+      document.getElementById('serpApiKeyStatus').className = 'key-status has-key';
+    }
+    if (cfg.hasEbscoKey) {
+      document.getElementById('ebscoKeyStatus').textContent = 'Set ✓';
+      document.getElementById('ebscoKeyStatus').className = 'key-status has-key';
+    }
+    if (cfg.unpaywallEmail) document.getElementById('unpaywallEmail').value = cfg.unpaywallEmail;
+  } catch {}
+}
+
+async function saveConfig() {
+  const body = {
+    anthropicKey: document.getElementById('anthropicKey').value.trim(),
+    serpApiKey: document.getElementById('serpApiKey').value.trim(),
+    ebscoKey: document.getElementById('ebscoKey').value.trim(),
+    unpaywallEmail: document.getElementById('unpaywallEmail').value.trim(),
+  };
+  const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await r.json();
+  if (data.success) {
+    alert('Settings saved!');
+    loadConfig();
+  }
+}
+
+async function testConnection() {
+  const resultEl = document.getElementById('connectionResult');
+  resultEl.style.display = 'block';
+  resultEl.className = 'connection-result';
+  resultEl.textContent = '🔄 Testing connection...';
+  try {
+    const r = await fetch('/api/test-connection', { method: 'POST' });
+    const data = await r.json();
+    resultEl.className = 'connection-result ' + (data.success ? 'success' : 'error');
+    resultEl.textContent = (data.success ? '✓ ' : '✗ ') + data.message;
+  } catch (e) {
+    resultEl.className = 'connection-result error';
+    resultEl.textContent = '✗ Connection error: ' + e.message;
+  }
+}
+
+// ─── SEEDS TAB ────────────────────────────────────────────────────────────────
+async function loadSeeds() {
+  const grid = document.getElementById('seedsGrid');
+  grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--label);">Loading...</div>';
+  try {
+    const r = await fetch('/api/seeds');
+    const seeds = await r.json();
+    grid.innerHTML = '';
+    for (const seed of seeds) {
+      const div = document.createElement('div');
+      div.className = 'seed-item';
+      const statusClass = seed.resolved ? 'resolved' : 'unresolved';
+      const statusIcon = seed.resolved ? '✓' : '✗';
+      div.innerHTML = `
+        <div class="seed-status ${statusClass}">${statusIcon}</div>
+        <div class="seed-info">
+          <div class="seed-title">${seed.paper?.title || seed.description || seed.doi}</div>
+          <div class="seed-doi">${seed.doi}${seed.paper?.year ? ' · ' + seed.paper.year : ''}</div>
+          ${seed.paper?.journal ? `<div class="seed-desc">${seed.paper.journal}</div>` : ''}
+        </div>
+        ${seed.resolved ? '' : `<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;" onclick="resolveSeed('${seed.doi}', this)">Resolve</button>`}
+      `;
+      grid.appendChild(div);
+    }
+  } catch (e) {
+    grid.innerHTML = '<div style="color:var(--rejected);padding:10px;">Error loading seeds: ' + e.message + '</div>';
+  }
+}
+
+async function resolveSeed(doi, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch('/api/seeds/resolve/' + encodeURIComponent(doi), { method: 'POST' });
+    if (r.ok) loadSeeds();
+    else btn.textContent = 'Failed';
+  } catch {
+    btn.textContent = 'Error';
+  }
+}
+
+async function addSeedDOI() {
+  const doi = document.getElementById('addSeedDoi').value.trim();
+  const result = document.getElementById('addSeedResult');
+  if (!doi) { result.textContent = 'Enter a DOI first'; return; }
+  result.textContent = '🔄 Resolving...';
+  try {
+    const r = await fetch('/api/seeds/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doi }) });
+    const data = await r.json();
+    if (data.success) {
+      result.style.color = 'var(--approved)';
+      result.textContent = '✓ Added: ' + (data.paper?.title || doi);
+      document.getElementById('addSeedDoi').value = '';
+    } else {
+      result.style.color = 'var(--rejected)';
+      result.textContent = '✗ ' + (data.error || 'Failed');
+    }
+  } catch (e) {
+    result.style.color = 'var(--rejected)';
+    result.textContent = '✗ Error: ' + e.message;
+  }
+}
+
+// ─── PIPELINE TAB ─────────────────────────────────────────────────────────────
+async function loadDomains() {
+  try {
+    const r = await fetch('/api/domains');
+    allDomains = await r.json();
+    const grid = document.getElementById('domainGrid');
+    grid.innerHTML = '';
+    for (const domain of allDomains) {
+      selectedDomains.add(domain.key);
+      const div = document.createElement('div');
+      div.className = 'domain-check' + (domain.isPriority ? ' priority' : '');
+      div.innerHTML = `
+        <input type="checkbox" id="domain_${domain.key}" checked onchange="toggleDomain('${domain.key}', this.checked)">
+        <label for="domain_${domain.key}" class="domain-name" style="cursor:pointer;">${domain.label}</label>
+        ${domain.minPapers > 0 ? `<span class="domain-min">min ${domain.minPapers}</span>` : ''}
+      `;
+      grid.appendChild(div);
+    }
+    updateDomainCount();
+  } catch {}
+}
+
+function toggleDomain(key, checked) {
+  if (checked) selectedDomains.add(key);
+  else selectedDomains.delete(key);
+  updateDomainCount();
+}
+
+function updateDomainCount() {
+  document.getElementById('domainSelectionCount').textContent = `${selectedDomains.size} of ${allDomains.length} domains selected`;
+}
+
+function selectAllDomains() {
+  allDomains.forEach(d => { selectedDomains.add(d.key); document.getElementById('domain_' + d.key).checked = true; });
+  updateDomainCount();
+}
+
+function selectNoneDomains() {
+  allDomains.forEach(d => { selectedDomains.delete(d.key); document.getElementById('domain_' + d.key).checked = false; });
+  updateDomainCount();
+}
+
+function selectPriorityDomains() {
+  allDomains.forEach(d => {
+    const isPriority = d.isPriority;
+    document.getElementById('domain_' + d.key).checked = isPriority;
+    if (isPriority) selectedDomains.add(d.key);
+    else selectedDomains.delete(d.key);
+  });
+  updateDomainCount();
+}
+
+async function runPipeline() {
+  if (selectedDomains.size === 0) { alert('Select at least one domain'); return; }
+  const body = { domains: Array.from(selectedDomains) };
+  try {
+    const r = await fetch('/api/pipeline/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (data.error) { alert(data.error); return; }
+    setPipelineRunning(true);
+    appendLog('mint', '=== Pipeline started ===');
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function stopPipeline() {
+  await fetch('/api/pipeline/stop', { method: 'POST' });
+  appendLog('amber', 'Stop signal sent...');
+}
+
+function setPipelineRunning(running) {
+  pipelineRunning = running;
+  document.getElementById('runPipelineBtn').style.display = running ? 'none' : '';
+  document.getElementById('stopPipelineBtn').style.display = running ? '' : 'none';
+  document.getElementById('pipelineStatus').textContent = running ? '🔄 Running...' : '';
+}
+
+// ─── REVIEW TAB ──────────────────────────────────────────────────────────────
+async function loadReviewQueue() {
+  try {
+    const r = await fetch('/api/papers/review-queue');
+    reviewQueue = await r.json();
+    reviewIndex = 0;
+    renderReviewCard();
+  } catch {}
+}
+
+function renderReviewCard() {
+  const container = document.getElementById('reviewContainer');
+  const progressEl = document.getElementById('reviewProgress');
+
+  if (reviewQueue.length === 0) {
+    progressEl.textContent = '0 papers in queue';
+    container.innerHTML = `
+      <div class="empty-queue">
+        <div class="icon">✅</div>
+        <p>No papers in review queue</p>
+        <p style="margin-top:8px;font-size:13px;">Run the pipeline to discover papers. Scores 65–87 appear here.</p>
+      </div>`;
+    return;
+  }
+
+  // Filter out already reviewed in this session
+  const pending = reviewQueue.filter(p => p.status === 'review_queue');
+  progressEl.textContent = `${pending.length} papers remaining · ${reviewQueue.length - pending.length} reviewed this session`;
+  loadReviewBadge(pending.length);
+
+  if (reviewIndex >= pending.length) {
+    container.innerHTML = `
+      <div class="empty-queue">
+        <div class="icon">🎉</div>
+        <p>All ${pending.length === 0 ? 'papers' : reviewQueue.length} reviewed!</p>
+        <button class="btn btn-ghost mt-12" onclick="loadReviewQueue()">↻ Refresh Queue</button>
+      </div>`;
+    return;
+  }
+
+  const paper = pending[reviewIndex];
+  const score = paper.score || 0;
+  const scoreClass = score >= 80 ? 'high' : score >= 65 ? 'mid' : 'low';
+  const breakdown = paper.score_breakdown || {};
+  const criteria = [
+    ['Evidence Quality', breakdown.evidence_quality || 0],
+    ['Endurance Relevance', breakdown.endurance_relevance || 0],
+    ['Coaching Actionability', breakdown.coaching_actionability || 0],
+    ['Athlete Safety', breakdown.athlete_safety || 0],
+    ['Coaching Specificity', breakdown.coaching_specificity || 0],
+  ];
+
+  const doiLink = paper.doi ? `<a href="https://doi.org/${paper.doi}" target="_blank" rel="noopener">${paper.doi}</a>` : '';
+  const tags = (paper.coaching_tags || []).map(t => `<span class="badge-tag">${t}</span>`).join('');
+
+  container.innerHTML = `
+    <div class="review-card">
+      <div class="paper-title">${escHtml(paper.title || 'Untitled')}</div>
+      <div class="paper-meta">
+        <span>${escHtml(paper.journal || '')}</span>
+        ${paper.year ? `<span>· ${paper.year}</span>` : ''}
+        ${paper.doi ? `<span>· ${doiLink}</span>` : ''}
+        ${paper.citation_count ? `<span>· ${paper.citation_count} citations</span>` : ''}
+      </div>
+      <div class="score-section">
+        <div class="score-circle ${scoreClass}">${score}</div>
+        <div class="score-bars">
+          ${criteria.map(([label, val]) => `
+            <div class="score-bar-row">
+              <div class="score-bar-label">${label}</div>
+              <div class="score-bar-track"><div class="score-bar-fill" style="width:${(val/20)*100}%"></div></div>
+              <div class="score-bar-val">${val}/20</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      ${paper.one_line_summary ? `<div class="summary-text">${escHtml(paper.one_line_summary)}</div>` : ''}
+      ${tags ? `<div class="tags-row">${tags}</div>` : ''}
+      ${paper.abstract ? `
+        <div class="abstract-toggle" onclick="toggleAbstract(this)">▶ Show Abstract</div>
+        <div class="abstract-text">${escHtml(paper.abstract)}</div>` : ''}
+      <div class="review-actions">
+        <button class="btn btn-success" onclick="reviewAction('${paper.id}', 'approve')">✓ Approve (A)</button>
+        <button class="btn btn-danger" onclick="reviewAction('${paper.id}', 'reject')">✗ Reject (R)</button>
+        <input type="text" id="reviewNote" class="review-note" placeholder="Rejection reason (optional)...">
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--label);">Paper ${reviewIndex + 1} of ${pending.length} in queue · source: ${paper.source || 'unknown'} · domain: ${paper.domain || '—'}</div>
+    </div>`;
+}
+
+function toggleAbstract(el) {
+  const text = el.nextElementSibling;
+  if (text.classList.contains('open')) {
+    text.classList.remove('open');
+    el.textContent = '▶ Show Abstract';
+  } else {
+    text.classList.add('open');
+    el.textContent = '▼ Hide Abstract';
+  }
+}
+
+async function reviewAction(id, action) {
+  const note = document.getElementById('reviewNote')?.value || '';
+  try {
+    const url = `/api/papers/${id}/${action}`;
+    const body = action === 'reject' ? { note } : {};
+    await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    // Mark as reviewed locally
+    const paper = reviewQueue.find(p => p.id === id);
+    if (paper) paper.status = action === 'approve' ? 'approved' : 'rejected';
+    reviewIndex++;
+    renderReviewCard();
+    updateStats();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+  if (activeTab !== 'review') return;
+  if (e.key === 'a' || e.key === 'A') {
+    const pending = reviewQueue.filter(p => p.status === 'review_queue');
+    if (pending[reviewIndex]) reviewAction(pending[reviewIndex].id, 'approve');
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    const pending = reviewQueue.filter(p => p.status === 'review_queue');
+    if (pending[reviewIndex]) reviewAction(pending[reviewIndex].id, 'reject');
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    reviewIndex++;
+    renderReviewCard();
+  }
+});
+
+// ─── LIBRARY TAB ─────────────────────────────────────────────────────────────
+let libStars = 4;
+
+function setLibStars(n) {
+  libStars = n;
+  const btns = document.querySelectorAll('#libStars .star-btn');
+  btns.forEach((btn, i) => {
+    btn.textContent = i < n ? '★' : '☆';
+  });
+}
+
+function prefillTextbook(title, authors, year, tier, domain) {
+  document.getElementById('lib_source_title').value = title;
+  document.getElementById('lib_authors').value = authors;
+  document.getElementById('lib_tier').value = tier;
+  document.getElementById('lib_domain').value = domain;
+  document.getElementById('lib_source_title').focus();
+}
+
+async function saveLibraryEntry() {
+  const entry = {
+    source_title: document.getElementById('lib_source_title').value.trim(),
+    authors: document.getElementById('lib_authors').value.trim(),
+    chapter_section: document.getElementById('lib_chapter').value.trim(),
+    core_principle: document.getElementById('lib_principle').value.trim(),
+    coaching_implication: document.getElementById('lib_implication').value.trim(),
+    confidence_level: libStars,
+    page_reference: document.getElementById('lib_pages').value.trim(),
+    citation_count: parseInt(document.getElementById('lib_citations').value || '0', 10),
+    tier: parseInt(document.getElementById('lib_tier').value, 10),
+    domain: document.getElementById('lib_domain').value,
+    status: 'approved',
+  };
+
+  if (!entry.source_title || !entry.core_principle) {
+    alert('Source title and core principle are required');
+    return;
+  }
+
+  const result = document.getElementById('libSaveResult');
+  result.textContent = 'Saving...';
+  try {
+    const r = await fetch('/api/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
+    if (r.ok) {
+      result.style.color = 'var(--approved)';
+      result.textContent = '✓ Saved!';
+      loadLibrary();
+      // Clear form
+      ['lib_chapter', 'lib_principle', 'lib_implication', 'lib_pages', 'lib_citations'].forEach(id => document.getElementById(id).value = '');
+      setTimeout(() => result.textContent = '', 3000);
+    }
+  } catch (e) {
+    result.style.color = 'var(--rejected)';
+    result.textContent = '✗ Error: ' + e.message;
+  }
+}
+
+async function loadLibrary() {
+  try {
+    const r = await fetch('/api/library');
+    const entries = await r.json();
+    document.getElementById('libCount').textContent = entries.length;
+    const container = document.getElementById('libraryEntries');
+    if (!entries.length) {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--label);">No entries yet. Add textbook knowledge above.</div>';
+      return;
+    }
+    container.innerHTML = entries.map(e => `
+      <div class="library-entry">
+        <div class="entry-title">${escHtml(e.source_title || '')} ${e.chapter_section ? '— ' + escHtml(e.chapter_section) : ''}</div>
+        <div class="entry-meta">
+          ${e.authors ? escHtml(e.authors) + ' · ' : ''}
+          <span class="badge-tier tier-${e.tier || 3}">Tier ${e.tier || 3}</span>
+          ${e.page_reference ? ' · ' + escHtml(e.page_reference) : ''}
+          ${e.confidence_level ? ' · <span class="stars">' + '★'.repeat(e.confidence_level) + '☆'.repeat(5 - e.confidence_level) + '</span>' : ''}
+          · <span style="color:var(--label)">${e.domain || ''}</span>
+        </div>
+        ${e.core_principle ? `<div class="entry-body"><strong>Principle:</strong> ${escHtml(e.core_principle)}</div>` : ''}
+        ${e.coaching_implication ? `<div class="entry-body"><strong>Coaching:</strong> ${escHtml(e.coaching_implication)}</div>` : ''}
+        <div style="margin-top:6px;display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:3px 8px;" onclick="deleteLibEntry('${e.id}')">🗑 Delete</button>
+        </div>
+      </div>`).join('');
+  } catch {}
+}
+
+async function deleteLibEntry(id) {
+  if (!confirm('Delete this library entry?')) return;
+  await fetch('/api/library/' + id, { method: 'DELETE' });
+  loadLibrary();
+}
+
+// ─── EXPORT TAB ──────────────────────────────────────────────────────────────
+async function loadCoverage() {
+  try {
+    const r = await fetch('/api/coverage');
+    const domains = await r.json();
+    const grid = document.getElementById('coverageGrid');
+    grid.innerHTML = domains.map(d => {
+      const { key, label, minPapers, count } = d;
+      let statusClass = 'neutral';
+      let indicatorClass = 'neutral';
+      if (minPapers > 0) {
+        if (count >= minPapers) { statusClass = 'green'; indicatorClass = 'green'; }
+        else if (count >= minPapers * 0.5) { statusClass = 'amber'; indicatorClass = 'amber'; }
+        else { statusClass = 'red'; indicatorClass = 'red'; }
+      }
+      const target = minPapers > 0 ? `${count}/${minPapers}` : `${count}`;
+      return `
+        <div class="coverage-item ${statusClass}">
+          <div class="coverage-indicator ${indicatorClass}"></div>
+          <div class="coverage-info">
+            <div class="coverage-label">${label}</div>
+            <div class="coverage-count">${target} approved papers${minPapers > 0 ? '' : ' (no minimum)'}</div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('coverageGrid').innerHTML = '<div style="color:var(--rejected)">Error loading coverage</div>';
+  }
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const data = await r.json();
+    const container = document.getElementById('exportStats');
+    container.innerHTML = [
+      ['Total Papers', data.total || 0],
+      ['Approved', data.approved || 0],
+      ['Review Queue', data.review_queue || 0],
+      ['Rejected', data.rejected || 0],
+      ['Library Entries', data.library_entries || 0],
+    ].map(([label, num]) => `
+      <div class="stat-box">
+        <div class="stat-num">${num}</div>
+        <div class="stat-label">${label}</div>
+      </div>`).join('');
+  } catch {}
+}
+
+function exportJSON() {
+  const date = new Date().toISOString().slice(0, 10);
+  const status = document.getElementById('exportStatus');
+  status.textContent = 'Generating export...';
+  const a = document.createElement('a');
+  a.href = '/api/export';
+  a.download = `pacer_database_${date}.json`;
+  a.click();
+  setTimeout(() => status.textContent = `✓ Exported pacer_database_${date}.json`, 500);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadConfig();
+  await loadDomains();
+  await updateStats();
+  // Check pipeline status
+  try {
+    const r = await fetch('/api/pipeline/status');
+    const data = await r.json();
+    if (data.running) setPipelineRunning(true);
+  } catch {}
+}
+
+init();
+</script>
+</body>
+</html>
